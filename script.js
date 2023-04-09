@@ -62,15 +62,25 @@ const inputDistance = document.querySelector('.form__input--distance');
 const inputDuration = document.querySelector('.form__input--duration');
 const inputCadence = document.querySelector('.form__input--cadence');
 const inputElevation = document.querySelector('.form__input--elevation');
+const btnBorrar = document.querySelector('#btnBorrar');
 
 class App {
   #map;
+  #mapZoomLevel = 14;
   #mapEvent;
   #workouts = [];
   constructor() {
+    // ubicación del usuario
     this._getPosition();
+
+    // información del local storage
+    this._getLocalStorage();
+
+    // event handlers
     form.addEventListener('submit', this._newWorkout.bind(this));
     inputType.addEventListener('change', this._toggleElevationField);
+    containerWorkouts.addEventListener('click', this._moveToPopup.bind(this));
+    btnBorrar.addEventListener('click', this.reset);
   }
 
   _getPosition() {
@@ -88,7 +98,7 @@ class App {
     const { latitude } = position.coords;
     const { longitude } = position.coords;
     const cords = [latitude, longitude];
-    this.#map = L.map('map').setView(cords, 15);
+    this.#map = L.map('map').setView(cords, this.#mapZoomLevel);
 
     L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
       attribution:
@@ -97,6 +107,10 @@ class App {
 
     //manejando los clicks del mapa
     this.#map.on('click', this._showForm.bind(this));
+
+    this.#workouts.forEach(w => {
+      this._renderWorkoutMarker(w);
+    });
   }
 
   _showForm(mapE) {
@@ -171,6 +185,9 @@ class App {
 
     // limpiar inputs
     this._hideForm();
+
+    // settear el local storage
+    this._setLocalStorage();
   }
 
   _renderWorkoutMarker(workout) {
@@ -242,6 +259,41 @@ class App {
     }
 
     form.insertAdjacentHTML('afterend', html);
+  }
+
+  _moveToPopup(e) {
+    const workoutEl = e.target.closest('.workout');
+
+    if (!workoutEl) return;
+
+    const workout = this.#workouts.find(w => w.id === workoutEl.dataset.id);
+
+    this.#map.setView(workout.coords, this.#mapZoomLevel, {
+      animate: true,
+      pan: {
+        duration: 1,
+      },
+    });
+  }
+
+  _setLocalStorage() {
+    localStorage.setItem('workouts', JSON.stringify(this.#workouts));
+  }
+
+  _getLocalStorage() {
+    const data = JSON.parse(localStorage.getItem('workouts'));
+
+    if (!data) return;
+
+    this.#workouts = data;
+    this.#workouts.forEach(w => {
+      this._renderWorkout(w);
+    });
+  }
+
+  reset() {
+    localStorage.removeItem('workouts');
+    location.reload();
   }
 }
 
